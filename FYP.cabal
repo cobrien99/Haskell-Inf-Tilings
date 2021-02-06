@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: f560e010216a9558a8d58a4c4e1b5ee86fcc1df57fd33dec92de4c293e7cb7eb
+-- hash: dd415e48166d57d3e2e6f1f638ab346dc0f579e2d8e389dd583716705b27a298
 
 name:           FYP
 version:        0.1.0.0
@@ -27,6 +27,7 @@ source-repository head
 
 library
   exposed-modules:
+      Draw
       Girih
       GUI
   other-modules:
@@ -36,6 +37,11 @@ library
   build-depends:
       base >=4.7 && <5
     , containers
+    , diagrams
+    , diagrams-lib
+    , diagrams-rasterific
+    , diagrams-svg
+    , file-embed
     , reflex-dom
     , text
     , threepenny-gui
@@ -52,6 +58,11 @@ executable FYP-exe
       FYP
     , base >=4.7 && <5
     , containers
+    , diagrams
+    , diagrams-lib
+    , diagrams-rasterific
+    , diagrams-svg
+    , file-embed
     , reflex-dom
     , text
     , threepenny-gui
@@ -69,6 +80,11 @@ test-suite FYP-test
       FYP
     , base >=4.7 && <5
     , containers
+    , diagrams
+    , diagrams-lib
+    , diagrams-rasterific
+    , diagrams-svg
+    , file-embed
     , reflex-dom
     , text
     , threepenny-gui

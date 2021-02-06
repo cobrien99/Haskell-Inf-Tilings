@@ -25,6 +25,11 @@ dependencies:
 - reflex-dom
 - text
 - containers
+- diagrams
+- diagrams-lib
+- diagrams-svg
+- diagrams-rasterific
+- file-embed
 
 library:
   source-dirs: src
