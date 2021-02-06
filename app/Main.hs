@@ -1,6 +1,6 @@
 module Main where
 
-import GUI ( gui )
+import GUI ( gmain )
 
 main :: IO ()
-main = gui
+main = gmain

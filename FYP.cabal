@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: b1abfb97c66f59c6285a2dd20fafae2f0b4a77aa4f8e157cfac0c1814c372f3f
+-- hash: f560e010216a9558a8d58a4c4e1b5ee86fcc1df57fd33dec92de4c293e7cb7eb
 
 name:           FYP
 version:        0.1.0.0
@@ -27,6 +27,7 @@ source-repository head
 
 library
   exposed-modules:
+      Girih
       GUI
   other-modules:
       Paths_FYP
@@ -34,6 +35,9 @@ library
       src
   build-depends:
       base >=4.7 && <5
+    , containers
+    , reflex-dom
+    , text
     , threepenny-gui
   default-language: Haskell2010
 
@@ -47,6 +51,9 @@ executable FYP-exe
   build-depends:
       FYP
     , base >=4.7 && <5
+    , containers
+    , reflex-dom
+    , text
     , threepenny-gui
   default-language: Haskell2010
 
@@ -61,5 +68,8 @@ test-suite FYP-test
   build-depends:
       FYP
     , base >=4.7 && <5
+    , containers
+    , reflex-dom
+    , text
     , threepenny-gui
   default-language: Haskell2010
