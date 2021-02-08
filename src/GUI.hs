@@ -7,8 +7,6 @@ module GUI (gmain) where
 import Reflex.Dom
 import qualified Data.Text as T
 import qualified Data.Map as M
-import Data.Monoid
-import Data.FileEmbed
 import Data.Text.Lazy ( toStrict ) --there could be some way to leverage this laziness
 import Draw (filepath, draw)
 import Control.Monad ((<=<), void)
@@ -18,18 +16,6 @@ import GHCJS.DOM.FileReader (newFileReader, readAsDataURL, load, getResult)
 
 gmain :: IO ()
 gmain = mainWidget bodyElement
-
--- bodyElement :: MonadWidget t m => m ()
--- bodyElement = do
---    el "h2" $ text "Control the zoom"
---    rec dynNum <- foldDyn ($) (1 :: Int) $ leftmost [(+1) <$ evIncr, (+ (-1)) <$ evDecr, const 1 <$ evReset]
---        let dynAttrs = attrs <$> dynNum
---        el "div" $ display dynNum
---        evIncr <- button "Zoom In"
---        evDecr <- button "Zoom Out"
---        evReset <- button "Reset Zoom"
---        elDynAttr "img" dynAttrs blank
---    return ()
 
 bodyElement :: MonadWidget t m => m ()
 bodyElement = do
