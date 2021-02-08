@@ -39,12 +39,9 @@ bodyElement = do
        let dynImage =  toStrict . draw <$> dynNum --ok wow I HAVE to thread this it's pretty slow otherwise
        elDynHtml' "div" dynImage
        el "div" $ display dynNum
-       evIncr <- button "Zoom In"
-       evDecr <- button "Zoom Out"
+       evIncr <- button "Zoom Out"
+       evDecr <- button "Zoom In"
        evReset <- button "Reset Zoom"
-    --    let
---     --        srcAttr :: Event t (M.Map T.Text T.Text)= ffor (return filepath ) $ \u -> "src" =: u
---        srcAttrDyn :: Dynamic t (M.Map T.Text T.Text) <- holdDyn mempty (ffor (constDyn $ T.pack filepath ) $ \u -> "src" =: u)
    return ()
 
 -- how does (display =<< count =<< button "ClickMe") work?
