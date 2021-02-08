@@ -29,7 +29,9 @@ dependencies:
 - diagrams-lib
 - diagrams-svg
 - diagrams-rasterific
+- svg-builder
 - file-embed
+- ghcjs-dom
 
 library:
   source-dirs: src

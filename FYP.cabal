@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: dd415e48166d57d3e2e6f1f638ab346dc0f579e2d8e389dd583716705b27a298
+-- hash: 51546820011e6aaf80908a9abf49e33763ea211fe5971b101c23800d5037c587
 
 name:           FYP
 version:        0.1.0.0
@@ -42,7 +42,9 @@ library
     , diagrams-rasterific
     , diagrams-svg
     , file-embed
+    , ghcjs-dom
     , reflex-dom
+    , svg-builder
     , text
     , threepenny-gui
   default-language: Haskell2010
@@ -63,7 +65,9 @@ executable FYP-exe
     , diagrams-rasterific
     , diagrams-svg
     , file-embed
+    , ghcjs-dom
     , reflex-dom
+    , svg-builder
     , text
     , threepenny-gui
   default-language: Haskell2010
@@ -85,7 +89,9 @@ test-suite FYP-test
     , diagrams-rasterific
     , diagrams-svg
     , file-embed
+    , ghcjs-dom
     , reflex-dom
+    , svg-builder
     , text
     , threepenny-gui
   default-language: Haskell2010
