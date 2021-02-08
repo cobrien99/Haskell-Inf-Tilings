@@ -12,7 +12,8 @@ import Diagrams.TwoD.Vector ( e )
 class Tiling a where --come up with better name, qTiling?
  draw :: a -> Diagram B
  --deflate :: a -> [a]
- matchingRule :: Edge f a -> Edge f a -> Bool  --Edge = (Point, Point)
+ --matchingRule :: Edge f a -> Edge f a -> Bool  --Edge = (Point, Point)
+ vertices :: a -> [(Point V2 Double, Bool)]
 
 type Edge f n = (Point f n, Point f n)
 type Origin = Point V2 Double --not sure about this type sig but sure look. maybe scoped type fams?
@@ -67,49 +68,25 @@ shesh_band = polygon (with & polyType .~ PolySides
 
 data Penrose = Kite Origin | Dart Origin| HalfDart Origin | HalfKite Origin
 
+--some important points for this tileset
+-- pr stands for Penrose
+-- the (.) is a reminder that this is a point
+-- The number represents the point. broadly 0 is the leftmost point and they increase clockwise
+
+pr0 = origin 
+pr1 = origin & _r .~ 1 & _theta .~ (36 @@ deg)
+pr2 = origin & _r .~ 1 & _theta .~ (0 @@ deg)
+pr3 = origin & _r .~ 1 & _theta .~ (-36 @@ deg)
+pr4 = pr1 .+^ e (-36 @@ deg)
 
 instance Tiling Penrose where
-  draw (Kite o)= kite o
-  draw (Dart o)= dart o
+  vertices (Kite o) =     map (moveOriginTo o) [pr0, pr1, pr2, pr3] `zip` [True, False, True, False]
+  vertices (Dart o) =     map (moveOriginTo o) [pr2, pr3, pr4, pr1] `zip` [False, True, False, True]
+  vertices (HalfKite o) = map (moveOriginTo o) [pr0, pr1, pr2]      `zip` [True, False, True]
+  vertices (HalfDart o) = map (moveOriginTo o) [pr2, pr4, pr1]      `zip` [False, False, True]
 
---mkTiling -> [Point f a] -> [Bool] -> Tiling
+  draw = mkTiling . vertices
 
-kite :: Origin -> Diagram B
-kite o = moveTo o $ moveOriginTo p2 (body <> matchingRules)
-  where
-    p1 = origin & _r .~ 1 & _theta .~ (36 @@ deg)
-    p2 = origin & _r .~ 1 & _theta .~ (0 @@ deg)
-    p3 = origin & _r .~ 1 & _theta .~ (-36 @@ deg)
-    body = strokeLine (origin ~~ p1) <> (p1 ~~ p2) <> (p2 ~~ p3) <> (p3 ~~ origin)
-    matchingRules = moveTo p1 mrWhite <> moveTo p3 mrWhite <> moveTo p2 mrBlack <> mrBlack
-
-dart :: Origin -> Diagram B
-dart o = moveTo o $ moveOriginTo p2 (body <> matchingRules)
-  where
-    p1 = origin & _r .~ 1 & _theta .~ (36 @@ deg)
-    p2 = origin & _r .~ 1 & _theta .~ (0 @@ deg)
-    p3 = origin & _r .~ 1 & _theta .~ (-36 @@ deg)
-    p4 = p1 .+^ e (-36 @@ deg) -- (origin .-. p3) is the vector pointing from origin to p3
-    body = strokeLine mempty <> (p2 ~~ p1) <> (p2 ~~ p3) <> (p3 ~~ p4) <> (p1 ~~ p4) -- the pointless mempty is bc for some reason the first line always draws weird
-    matchingRules = moveTo p1 mrBlack <> moveTo p3 mrBlack <> moveTo p2 mrWhite <> moveTo p4 mrWhite
-
-halfDart :: Origin -> Diagram B
-halfDart o = moveTo o $ moveOriginTo p2 (body <> matchingRules)
-  where
-    p1 = origin & _r .~ 1 & _theta .~ (36 @@ deg)
-    p2 = origin & _r .~ 1 & _theta .~ (0 @@ deg)
-    p3 = origin & _r .~ 1 & _theta .~ (-36 @@ deg)
-    p4 = p1 .+^ e (-36 @@ deg) -- (origin .-. p3) is the vector pointing from origin to p3
-    body = strokeLine mempty <> (p2 ~~ p1) <> (p2 ~~ p4) <> (p1 ~~ p4)
-    matchingRules = moveTo p1 mrBlack <> moveTo p2 mrWhite <> moveTo p4 mrWhite
-
-halfKite :: Origin -> Diagram B
-halfKite o = moveTo o $ moveOriginTo p2 (body <> matchingRules)
-  where
-    p1 = origin & _r .~ 1 & _theta .~ (36 @@ deg)
-    p2 = origin & _r .~ 1 & _theta .~ (0 @@ deg)
-    body = strokeLine mempty <> (p2 ~~ p1) <> (p2 ~~ origin) <> (p1 ~~ origin)
-    matchingRules = moveTo p1 mrWhite  <> moveTo p2 mrBlack <> moveTo origin mrBlack
 
 
 -- takes a list of points and bool
@@ -118,60 +95,19 @@ halfKite o = moveTo o $ moveOriginTo p2 (body <> matchingRules)
 -- origin is set to the first point in list
 --mkTiling :: [(Point v n, Bool)] -> Diagram B
 
+-- TODO first diagram (Kite) draws shifted to the right for some reason
+
 mkTiling :: [(Point V2 Double, Bool)] -> QDiagram B V2 Double Any
-mkTiling vertices = (body <> matchingRules ps mrs) # showOrigin
+mkTiling vertices = body <> translate (origin .-. head ps) (matchingRules ps mrs)
   where
     (ps, mrs) = unzip vertices
-    body = moveTo (head ps) $ strokeLine $ fromVertices (ps ++ [head ps])
+    body = strokeLine $ fromVertices (ps ++ [head ps])
     matchingRules (b:bs) (p:ps)= mr b p <> matchingRules bs ps
     matchingRules [] [] = mempty
 
 mr :: Point V2 Double -> Bool -> QDiagram B V2 Double Any
-mr p True  = moveTo (p - origin ) mrBlack
-mr p False = moveTo (p - origin ) mrWhite
-
-mrWhite :: Diagram B
-mrWhite = circle 0.05
-
-mrBlack :: Diagram B
-mrBlack = circle 0.05 # fc black
-
---Note the origin of this diagram is in the left most point
-
-
-kite' = mkTiling vertices
-  where
-    p1 = origin & _r .~ 1 & _theta .~ (36 @@ deg)
-    p2 = origin & _r .~ 1 & _theta .~ (0 @@ deg)
-    p3 = origin & _r .~ 1 & _theta .~ (-36 @@ deg)
-    vertices = zip [origin, p1, p2, p3] [True, False, True, False ]
-
-dart' = mkTiling vertices
-  where
-    p1 = origin & _r .~ 1 & _theta .~ (36 @@ deg)
-    p2 = origin & _r .~ 1 & _theta .~ (0 @@ deg)
-    p3 = origin & _r .~ 1 & _theta .~ (-36 @@ deg)
-    p4 = p1 .+^ e (-36 @@ deg) -- (origin .-. p3) is the vector pointing from origin to p3
-    vertices = zip [p1, p2, p3, p4] [True, False , True, False]
-
-halfKite' = mkTiling vertices
-  where
-    p1 = origin & _r .~ 1 & _theta .~ (36 @@ deg)
-    p2 = origin & _r .~ 1 & _theta .~ (0 @@ deg)
-    p3 = origin & _r .~ 1 & _theta .~ (-36 @@ deg)
-    vertices = zip [origin, p1, p2] [True, False, True]
-
-halfDart' = mkTiling vertices
-  where
-    p1 = origin & _r .~ 1 & _theta .~ (36 @@ deg)
-    p2 = origin & _r .~ 1 & _theta .~ (0 @@ deg)
-    p3 = origin & _r .~ 1 & _theta .~ (-36 @@ deg)
-    p4 = p1 .+^ e (-36 @@ deg) -- (origin .-. p3) is the vector pointing from origin to p3
-    vertices = zip [p1, p2, p4] [True, False, False]
-
-
-
+mr p True  = circle 0.05 # fc black # moveTo p 
+mr p False = circle 0.05 # moveTo p 
  
 --gTest = mainWith (tabl ||| torange ||| pange ||| sormeh_dah ||| shesh_band)
-gTest = renderSVG "images/gTest.svg" (mkWidth 400) $ (kite origin ||| dart origin  ||| halfDart origin ||| halfKite origin ) === (kite' ||| dart' ||| halfKite' ||| halfDart')
---gTest = renderSVG "images/gTest.svg" (mkWidth 400) $ (kite origin # showOrigin ||| kite' # showOrigin)
+gTest = renderSVG "images/gTest.svg" (mkWidth 400) $ foldr ((|||) . draw) mempty [Kite origin, Dart origin, HalfDart origin , HalfKite origin ]
