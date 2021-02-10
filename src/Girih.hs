@@ -10,13 +10,20 @@ import Diagrams.Backend.SVG.CmdLine
 import Diagrams.TwoD.Vector ( e )
 
 class Tiling a where --come up with better name, qTiling?
- draw :: a -> Diagram B
- --deflate :: a -> [a]
- --matchingRule :: Edge f a -> Edge f a -> Bool  --Edge = (Point, Point)
  vertices :: a -> [(Point V2 Double, Bool)]
+ draw :: a -> Diagram B
+ draw = mkTiling . vertices --default
+ deflate :: a -> [a]
+ --matchingRule :: Edge f a -> Edge f a -> Bool  --Edge = (Point, Point)
+
+--class (Tiling a) => QuasiCrystallineTiling a where
+  -- deflate :: a -> [a]
+  -- OR matchingRule :: Edge f a -> Edge f a -> Bool  --Edge = (Point, Point)
+
 
 type Edge f n = (Point f n, Point f n)
 type Origin = Point V2 Double --not sure about this type sig but sure look. maybe scoped type fams?
+type Transform = Diagram B -> Diagram B --holds translation + rotatation + scale info for the shape, should come up with better name
 
 --This module contains Tilesets e.g. Girih
 
@@ -66,7 +73,9 @@ shesh_band = polygon (with & polyType .~ PolySides
 
 --They're all broadly the right shape and size. Not sure How I can check more at this stage
 
-data Penrose = Kite Origin | Dart Origin| HalfDart Origin | HalfKite Origin
+data Penrose = Kite (Transformation V2 Double) | Dart (Transformation V2 Double) | HalfDart (Transformation V2 Double) | HalfKite (Transformation V2 Double)
+
+--data Tiling = Tiling 
 
 --some important points for this tileset
 -- pr stands for Penrose
@@ -80,14 +89,15 @@ pr3 = origin & _r .~ 1 & _theta .~ (-36 @@ deg)
 pr4 = pr1 .+^ e (-36 @@ deg)
 
 instance Tiling Penrose where
-  vertices (Kite o) =     map (moveOriginTo o) [pr0, pr1, pr2, pr3] `zip` [True, False, True, False]
-  vertices (Dart o) =     map (moveOriginTo o) [pr2, pr3, pr4, pr1] `zip` [False, True, False, True]
-  vertices (HalfKite o) = map (moveOriginTo o) [pr0, pr1, pr2]      `zip` [True, False, True]
-  vertices (HalfDart o) = map (moveOriginTo o) [pr2, pr4, pr1]      `zip` [False, False, True]
+  vertices (Kite t) =     map (papply t) [pr0, pr1, pr2, pr3] `zip` [True, False, True, False]
+  vertices (Dart t) =     map (papply t) [pr2, pr3, pr4, pr1] `zip` [False, True, False, True]
+  vertices (HalfKite t) = map (papply t) [pr0, pr1, pr2]      `zip` [True, False, True]
+  vertices (HalfDart t) = map (papply t) [pr2, pr4, pr1]      `zip` [False, False, True]
 
-  draw = mkTiling . vertices
-
-
+  deflate (Kite t) = [HalfKite t, HalfKite $ t <> reflectionY]
+  deflate (Dart t) = [HalfDart t, HalfDart $ t <> reflectionY]
+  deflate (HalfKite t) = [HalfDart (t <> rotation (-144 @@ deg)), Kite (t <> rotation (-108 @@ deg))]
+  deflate (HalfDart t) = [HalfDart (t <> rotation (180-36 @@ deg)), HalfKite (t <> reflectionX)]
 
 -- takes a list of points and bool
 -- bools correspond to the matching rule, colour at that point, true for black false for white
@@ -98,11 +108,11 @@ instance Tiling Penrose where
 -- TODO first diagram (Kite) draws shifted to the right for some reason
 
 mkTiling :: [(Point V2 Double, Bool)] -> QDiagram B V2 Double Any
-mkTiling vertices = body <> translate (origin .-. head ps) (matchingRules ps mrs)
+mkTiling vertices = body <> translate (origin .-. centroid ps) (matchingRules ps mrs)
   where
     (ps, mrs) = unzip vertices
-    body = strokeLine $ fromVertices (ps ++ [head ps])
-    matchingRules (b:bs) (p:ps)= mr b p <> matchingRules bs ps
+    body = translate (head ps .-. centroid ps) $ strokeLine $ fromVertices (ps ++ [head ps]) --from vertices sets the first point as the origin so have to correct for that
+    matchingRules (b:bs) (p:ps)= mr b p <> matchingRules bs ps --matching rule treats (0,0) a orgin so have to correct for that too
     matchingRules [] [] = mempty
 
 mr :: Point V2 Double -> Bool -> QDiagram B V2 Double Any
@@ -110,4 +120,4 @@ mr p True  = circle 0.05 # fc black # moveTo p
 mr p False = circle 0.05 # moveTo p 
  
 --gTest = mainWith (tabl ||| torange ||| pange ||| sormeh_dah ||| shesh_band)
-gTest = renderSVG "images/gTest.svg" (mkWidth 400) $ foldr ((|||) . draw) mempty [Kite origin, Dart origin, HalfDart origin , HalfKite origin ]
+gTest = renderSVG "images/gTest.svg" (mkWidth 400) $ foldr ((|||) . showOrigin . draw) mempty  $ [Kite mempty, Dart mempty, HalfDart mempty, HalfKite mempty ] -- ++ deflate (HalfKite mempty) ++ deflate (HalfDart mempty)

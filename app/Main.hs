@@ -6,4 +6,4 @@ import Girih ( gTest )
 
 main :: IO ()
 main = do
-    gmain
+    gTest

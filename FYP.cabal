@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 51546820011e6aaf80908a9abf49e33763ea211fe5971b101c23800d5037c587
+-- hash: 51dcfee8dd25664501b840b7f087a8ccd94ed58af0187bae60a1eaf2b023e1cb
 
 name:           FYP
 version:        0.1.0.0
@@ -30,6 +30,7 @@ library
       Draw
       Girih
       GUI
+      Tile
   other-modules:
       Paths_FYP
   hs-source-dirs:
