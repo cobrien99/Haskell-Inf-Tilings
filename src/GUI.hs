@@ -1,18 +1,11 @@
-{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecursiveDo #-} --have to use recursive do so we can refer to events before we define them
 {-# LANGUAGE ScopedTypeVariables #-}
 module GUI (gmain) where
 
 import Reflex.Dom
-import qualified Data.Text as T
-import qualified Data.Map as M
 import Data.Text.Lazy ( toStrict ) --there could be some way to leverage this laziness
 import Draw (filepath, draw)
-import Control.Monad ((<=<), void)
-import Data.Maybe (listToMaybe)
-import GHCJS.DOM.EventM (on)
-import GHCJS.DOM.FileReader (newFileReader, readAsDataURL, load, getResult)
 
 gmain :: IO ()
 gmain = mainWidget bodyElement

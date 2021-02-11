@@ -120,4 +120,4 @@ mr p True  = circle 0.05 # fc black # moveTo p
 mr p False = circle 0.05 # moveTo p 
  
 --gTest = mainWith (tabl ||| torange ||| pange ||| sormeh_dah ||| shesh_band)
-gTest = renderSVG "images/gTest.svg" (mkWidth 400) $ foldr ((|||) . showOrigin . draw) mempty  $ [Kite mempty, Dart mempty, HalfDart mempty, HalfKite mempty ] -- ++ deflate (HalfKite mempty) ++ deflate (HalfDart mempty)
+gTest = renderSVG "images/gTest.svg" (mkWidth 400) $ foldr ((|||) . showOrigin . draw) mempty  $ [Kite mempty, Dart mempty, HalfDart mempty, HalfKite mempty ]  ++ deflate (HalfKite mempty) ++ deflate (HalfDart mempty)
