@@ -30,6 +30,7 @@ eToL ((p1, c1), (p2, c2)) = p1 ~~ p2
 
 
 --What if they would match when flipped?
+-- is this the same as e1 == e2?
 doesMatch :: Edge -> Edge -> Bool
 doesMatch ((p1, c1), (p2, c2)) ((p3, c3), (p4, c4)) | not $ (c1 == c3) && (c2 == c4) = False --check the colours at the vertices match
                                                     | norm (p1 .-. p3) /= norm (p2 .-. p4) = False --Check the lengths of the edges are the same
@@ -44,7 +45,7 @@ doesMatch' (e1, e2) = doesMatch e1 e2
 vToE :: [Vertex] -> [Edge]
 vToE vs = if head vs /= last vs then f (last vs: vs) else []
     where   f [v] = []
-            f (v:vs) = (v, head vs) : vToE vs
+            f (v:vs) = (v, head vs) : f vs
 
 
 tToE :: Tile a => a -> [Edge]
@@ -61,8 +62,12 @@ tToE = vToE . vertices
 --filters then using doesMatch'
 matchingEdges ::[Edge] -> [Edge] -> [(Edge, Edge)]
 matchingEdges a b =  doesMatch' `filter` allEdges a b
-    where   allEdges [] _ = []
-            allEdges (a:as) b = map (a, ) b ++ matchingEdges as b
+    -- where   allEdges [] _ = []
+    --         allEdges (a:as) b = map (a, ) b ++ matchingEdges as b
+
+allEdges [] _ = []
+allEdges (a:as) b = map (a, ) b ++ matchingEdges as b
+
 
 --I mean this surely could be a functor
 matchingEdges' a b = matchingEdges (tToE a) (tToE b)
@@ -72,13 +77,29 @@ matchingEdges' a b = matchingEdges (tToE a) (tToE b)
 --what about transformation
 --rotation and translation order could be wrong. translation operator could be wrong too
 match :: Edge -> Edge -> Transformation V2 Double
-match e1 e2 = if doesMatch e1 e2 then translation (c1 .-. c2) <> rotation (angleBetween v1 v2)  else mempty
+match e1 e2 = if doesMatch e1 e2 then {-translation (c1 .-. c2) <>-} rotation (angleBetween v1 v2)  else mempty
             where
                 v1 = eToV e1
                 v2 = eToV e2
                 c1 = eToC e1
                 c2 = eToC e2
  --and the distance between points is a match factor
+
+--like match but matches two tiles and draws it
+--look this function does a lot but I need to get  these diagrams to line up
+-- third input is a function that decides which match to use
+matchT :: Tile a => a -> a -> ([(Edge, Edge)] -> (Edge, Edge)) -> Diagram B
+matchT t1 t2 f =  draw t1 # alignB # snugL <> draw t2 # alignB # snugR --draw t1 <> (moveOriginTo (eToC e2) $! draw t2) # showOrigin -- # translate (-vec2)
+    where 
+        matches = matchingEdges' t1 t2
+        (e1, e2) = f matches
+        t =  match e1 e2
+        vec1 = eToC e1 .-. origin --should point from origin to edge midpoint
+        vec2 = origin .-. eToC e2  --midpoint -> edge
+        vec3 = eToC e1 .-. eToC e2
+        --t = if null matches then mempty  else uncurry match (e1,e2)
+
+
 
 
 
@@ -88,8 +109,9 @@ class Tile a where
     draw :: a -> Diagram B
     draw = mkTiling . vertices
 
+--resulting origin is in the centroid of vertices
 mkTiling :: [Vertex] -> QDiagram B V2 Double Any
-mkTiling vertices = body <> translate (origin .-. centroid ps) (matchingRules ps mrs)
+mkTiling vertices = body -- <> translate (origin .-. centroid ps) (matchingRules ps mrs)
   where
     (ps, mrs) = unzip vertices
     body = translate (head ps .-. centroid ps) $ strokeLine $ fromVertices (ps ++ [head ps]) --from vertices sets the first point as the origin so have to correct for that
@@ -116,9 +138,7 @@ instance Functor Tiling where
 --     t1 <> t2 = Deflate [t1, t2] -- pretty sure this doesn't satisy a law [x <> (y <> z) = (x <> y) <> z]
 
 -- instance Monoid (Tiling a) where
-
-
-
+ 
 
 --class (Tile a) => Tiling a where 
 -- Tile set is where the deflation/matching rules are defined
@@ -136,7 +156,7 @@ data Penrose = Kite | Dart | HalfKite | HalfDart
 
 
 
---some points that are import
+--some points that are important
 pr0 :: (Additive f, Num a) => Point f a
 pr0 = origin 
 pr1 :: (Additive f, HasR f, RealFloat n, HasTheta f) => Point f n
@@ -170,10 +190,11 @@ baseTiles = map (Base mempty) [Kite, Dart, HalfDart, HalfKite]
 deflations = map deflate baseTiles
 --tileTest = renderSVG "images/tTest.svg" (mkWidth 400) $ foldr ((|||) . showOrigin . draw') mempty  $ baseTiles  ++ deflations
 
-tileTest = renderSVG "images/tTest.svg" (mkWidth 400) $ foldr ((|||) . showOrigin . draw') mempty  $ [Base mempty HalfDart, Base t Kite]
-    where 
-        matches= matchingEdges' HalfDart Kite
-        t = case matches of 
-            ((e1,e2):ms) -> match e1 e2
-            _            -> mempty 
-        
+-- tileTest = renderSVG "images/tTest.svg" (mkWidth 400) $ foldr ((===) . showOrigin . draw') mempty  $ [Base mempty HalfDart, Base t Kite]
+--     where 
+--         es1 = tToE Kite
+--         es2 = tToE HalfDart 
+--         t = match (head es1) (head es2)
+--tileTest = renderSVG "images/tTest.svg" (mkWidth 400) $ matchT Kite HalfDart head
+
+tileTest = renderSVG "images/tTest.svg" (mkWidth 400) $ foldr ((|||) . showOrigin . draw') mempty  $ baseTiles  ++ deflations

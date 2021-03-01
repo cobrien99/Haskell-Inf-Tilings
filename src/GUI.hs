@@ -15,7 +15,7 @@ bodyElement = do
    el "h2" $ text "Control the zoom"
    rec 
        dynNum <- foldDyn ($) (1 :: Int) $ leftmost [(+1) <$ evIncr, (\x -> max 1 (x-1)) <$ evDecr, const 1 <$ evReset]
-       let dynImage =  toStrict . draw <$> dynNum --ok wow I HAVE to thread this it's pretty slow otherwise
+       let dynImage =  toStrict . draw <$> dynNum --Thread this
        elDynHtml' "div" dynImage
        el "div" $ display dynNum
        evIncr <- button "Zoom Out"

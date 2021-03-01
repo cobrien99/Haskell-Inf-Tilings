@@ -24,5 +24,6 @@ cabal.project.local~
 diagrams-threepenny-test.hsproj/
 macos11ghcwa.dylib
 images/
+Docs/
 .DS_Store
 .DS_Store
