@@ -2,13 +2,15 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TupleSections #-}
+{-# LANGUAGE OverloadedStrings #-}
 
-module Tile2 (tileTest2) where
+module Tile2 (tileTest2, guiDemo, kiteCons, dartCons, tile, ) where
 
 import Diagrams.Prelude hiding (dart, halfDart, dart', halfDart')
 import Diagrams.Backend.SVG
 import Diagrams.Backend.SVG.CmdLine
 import Diagrams.TwoD.Vector ( e )
+import Graphics.Svg.Core (renderText)
 
 
 
@@ -53,12 +55,15 @@ findMatchingedges (v:vs) b = filter (\x -> norm v == norm x) b ++ findMatchinged
 --data Tiling a = Tiling [Tile a]
 
 data Penrose = Kite | Dart | HalfDart | HalfKite
+kiteCons = Kite
+dartCons = Dart
 
 edgesP :: Penrose -> [Edge]
 edgesP Kite = [(e (36 @@ deg), (True, False)), (-e (36 @@ deg) + e (0 @@ deg), (False, True)), (-e (0 @@ deg) + e (-36 @@ deg), (True, False))]
 
 
 data Tile a = Tile a (Transformation V2 Double)
+tile = Tile
 
 getTransform :: Tile a -> Transformation V2 Double
 getTransform (Tile _ t) = t
@@ -105,6 +110,7 @@ deflateNdraw :: Int -> Tile Penrose -> QDiagram B V2 Double Any
 deflateNdraw 0 t = draw' t
 deflateNdraw 1 t = transform (getTransform t) . foldr (matchingRule t . draw') mempty $ deflateTile' t--matchingRule t $ deflateTile' t
 deflateNdraw 2 t = foldr (matchingRule t . deflateNdraw 1) mempty (deflateTile' t)
+deflateNdraw n t = draw' t
 --deflateNdraw t n = (matchingRule t) ()
 
 
@@ -165,6 +171,9 @@ tiles = [Tile Kite mempty, Tile Dart mempty, Tile HalfKite mempty, Tile HalfDart
 
 --tileTest2 = renderSVG "images/tTest.svg" (mkWidth 400) $ deflateRec [Tile Dart mempty] 2
 tileTest2 = renderSVG "images/tTest.svg" (mkWidth 400) $ foldr ((|||). deflateNdraw 2) mempty tiles
+
+--guiDemo :: Penrose -> Int -> Text
+guiDemo t z = renderText $ renderDia SVG (SVGOptions (mkWidth 600) Nothing "" [] True) $ deflateNdraw z t
 
 deflateRec :: [Tile Penrose] -> Int -> QDiagram B V2 Double Any
 deflateRec t 0 = foldr ((<>) . draw') mempty t
