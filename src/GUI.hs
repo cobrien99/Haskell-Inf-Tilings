@@ -27,16 +27,16 @@ serpDemo = do
 deflateDemo :: MonadWidget t m => m ()
 deflateDemo = do
     rec
-        dynZoom <- foldDyn ($) (0 :: Int) $ leftmost [(+1) <$ evIncr, (\x -> max 0 (x-1)) <$ evDecr]
+        dynZoom <- foldDyn ($) (0 :: Int) $ leftmost [(+1) <$ evIncr, (\x -> max 0 (x-1)) <$ evDecr, const 0 <$ evReset]
         dynTiling <- foldDyn ($) (tile kiteCons mempty) $ leftmost [const (tile kiteCons mempty) <$ evKite, const (tile dartCons mempty) <$ evDart]
         let dynImage =  toStrict <$> ((guiDemo <$> dynTiling) <*> dynZoom)
-        --let dynImage =  toStrict . (\z ->  ((\t -> guiDemo z t) <$> dynTiling) <$> dynZoom)
         elDynHtml' "div" dynImage
         evKite <- button "Kite"
         evDart <- button "Dart"
         el "div" $ display dynZoom
         evIncr <- button "Zoom Out"
         evDecr <- button "Zoom In"
+        evReset <- button "Reset Zoom"
     return ()
 
 -- how does (display =<< count =<< button "ClickMe") work?

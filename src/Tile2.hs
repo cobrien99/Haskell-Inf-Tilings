@@ -101,17 +101,16 @@ deflate HalfDart = draw halfDart # rotate (144 @@ deg) <> draw halfKite # reflec
 draw x = mkTiling (map (,True) x)
 
 draw' :: Tile Penrose -> QDiagram B V2 Double Any
-draw' (Tile Kite t) = draw kite # transform t # showOrigin # lc yellow
-draw' (Tile Dart t) = draw dart # transform t # showOrigin # lc green
-draw' (Tile HalfKite t) = draw halfKite # transform t # showOrigin # lc blue
-draw' (Tile HalfDart t) = draw halfDart # transform t # showOrigin # lc red
+draw' (Tile Kite t) = draw kite # transform t # lc green -- # showOrigin
+draw' (Tile Dart t) = draw dart # transform t # lc yellow -- # showOrigin 
+draw' (Tile HalfKite t) = draw halfKite # transform t # lc blue -- # showOrigin 
+draw' (Tile HalfDart t) = draw halfDart # transform t # lc red -- # showOrigin
 
 deflateNdraw :: Int -> Tile Penrose -> QDiagram B V2 Double Any
 deflateNdraw 0 t = draw' t
 deflateNdraw 1 t = transform (getTransform t) . foldr (matchingRule t . draw') mempty $ deflateTile' t--matchingRule t $ deflateTile' t
-deflateNdraw 2 t = foldr (matchingRule t . deflateNdraw 1) mempty (deflateTile' t)
-deflateNdraw n t = draw' t
---deflateNdraw t n = (matchingRule t) ()
+--deflateNdraw 2 t = foldr (matchingRule t . deflateNdraw 1) mempty (deflateTile' t)
+deflateNdraw n t = transform (getTransform t) $ foldr (matchingRule t . deflateNdraw (n-1)) mempty (deflateTile' t)
 
 
 --determines how the chuildren of this tile will line up when the tile is deflated
@@ -173,7 +172,7 @@ tiles = [Tile Kite mempty, Tile Dart mempty, Tile HalfKite mempty, Tile HalfDart
 tileTest2 = renderSVG "images/tTest.svg" (mkWidth 400) $ foldr ((|||). deflateNdraw 2) mempty tiles
 
 --guiDemo :: Penrose -> Int -> Text
-guiDemo t z = renderText $ renderDia SVG (SVGOptions (mkWidth 600) Nothing "" [] True) $ deflateNdraw z t
+guiDemo t z = renderText $ renderDia SVG (SVGOptions (mkHeight 500) Nothing "" [] True) $ deflateNdraw z t
 
 deflateRec :: [Tile Penrose] -> Int -> QDiagram B V2 Double Any
 deflateRec t 0 = foldr ((<>) . draw') mempty t
