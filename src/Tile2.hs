@@ -18,6 +18,19 @@ import Graphics.Svg.Core (renderText)
 type Vertex = (V2 Double, Bool)
 type Edge = (V2 Double, (Bool, Bool))
 
+
+vToE :: Vertex -> Vertex -> Edge
+vToE (v1, b1) (_, b2) = (v1, (b1, b2))
+
+vsToEs :: [Vertex] -> [Edge]
+vsToEs [] = []
+vsToEs [_] = []
+vsToEs vs = helper (vs ++ [head vs])
+  where 
+    helper (v1:v2:vs) = vToE v1 v2 : helper (v2:vs)
+    helper _ = []
+
+
 --instance Eq [Vertex] where
 
 --type Edge = (Vertex, Vertex)
@@ -69,18 +82,18 @@ getTransform :: Tile a -> Transformation V2 Double
 getTransform (Tile _ t) = t
 
 
-kite :: [V2 Double]
-kite = [e (36 @@ deg), -e (36 @@ deg) + e (0 @@ deg), -e (0 @@ deg) + e (-36 @@ deg), -e (-36 @@ deg)]
+kite :: [Vertex]
+kite = zip [e (36 @@ deg), -e (36 @@ deg) + e (0 @@ deg), -e (0 @@ deg) + e (-36 @@ deg), -e (-36 @@ deg)] [True, False, True, False]
 
-dart :: [V2 Double]
-dart = [e (-36 @@ deg), -e (36 @@ deg), -e (-36 @@ deg) + e (0 @@ deg), - e (0 @@ deg) + e (36 @@ deg)]
+dart :: [Vertex]
+dart = zip [e (-36 @@ deg), -e (36 @@ deg), -e (-36 @@ deg) + e (0 @@ deg), - e (0 @@ deg) + e (36 @@ deg)] [False, False, True, False]
 --dart = [ - e (0 @@ deg) + e (36 @@ deg), e (-36 @@ deg), -e (36 @@ deg), -e (-36 @@ deg) + e (0 @@ deg)]
 
-halfKite :: [V2 Double]
-halfKite = [e (36 @@ deg), -e (36 @@ deg) + e (0 @@ deg), -e (0 @@ deg)]
+halfKite :: [Vertex]
+halfKite = zip [e (36 @@ deg), -e (36 @@ deg) + e (0 @@ deg), -e (0 @@ deg)] [True, False, True]
 
-halfDart :: [V2 Double]
-halfDart = [e (-36 @@ deg), -e (36 @@ deg) -e (-36 @@ deg) + e (0 @@ deg), - e (0 @@ deg) + e (36 @@ deg)]
+halfDart :: [Vertex]
+halfDart = zip [e (-36 @@ deg), -e (36 @@ deg) -e (-36 @@ deg) + e (0 @@ deg), - e (0 @@ deg) + e (36 @@ deg)] [False, False, True]
 --halfDart = [- e (0 @@ deg) + e (36 @@ deg), e (-36 @@ deg), -e (36 @@ deg) -e (-36 @@ deg) + e (0 @@ deg)]
 
 mkTiling :: [Vertex] -> QDiagram B V2 Double Any
@@ -93,22 +106,21 @@ mkTiling vertices = body -- <> translate (origin .-. centroid ps) (matchingRules
     -- matchingRules [] [] = mempty
 
 deflate :: Penrose -> QDiagram B V2 Double Any
-deflate Kite = draw halfKite <> draw halfKite # reflectY
-deflate Dart = draw halfDart === draw halfDart # reflectY
-deflate HalfKite = draw kite # rotate (-108 @@ deg) # moveOriginBy (- e (36 @@ deg)) <> draw halfDart # rotate (-144 @@ deg) -- # alignT # centerX
-deflate HalfDart = draw halfDart # rotate (144 @@ deg) <> draw halfKite # reflectX # alignL
+deflate Kite = mkTiling halfKite <> mkTiling halfKite # reflectY
+deflate Dart = mkTiling halfDart === mkTiling halfDart # reflectY
+deflate HalfKite = mkTiling kite # rotate (-108 @@ deg) # moveOriginBy (- e (36 @@ deg)) <> mkTiling halfDart # rotate (-144 @@ deg) -- # alignT # centerX
+deflate HalfDart = mkTiling halfDart # rotate (144 @@ deg) <> mkTiling halfKite # reflectX # alignL
 
-draw x = mkTiling (map (,True) x)
 
-draw' :: Tile Penrose -> QDiagram B V2 Double Any
-draw' (Tile Kite t) = draw kite # transform t # lc green -- # showOrigin
-draw' (Tile Dart t) = draw dart # transform t # lc yellow -- # showOrigin 
-draw' (Tile HalfKite t) = draw halfKite # transform t # lc blue -- # showOrigin 
-draw' (Tile HalfDart t) = draw halfDart # transform t # lc red -- # showOrigin
+draw :: Tile Penrose -> QDiagram B V2 Double Any
+draw (Tile Kite t) = mkTiling kite # transform t # lc green -- # showOrigin
+draw (Tile Dart t) = mkTiling dart # transform t # lc yellow -- # showOrigin 
+draw (Tile HalfKite t) = mkTiling halfKite # transform t # lc blue -- # showOrigin 
+draw (Tile HalfDart t) = mkTiling halfDart # transform t # lc red -- # showOrigin
 
 deflateNdraw :: Int -> Tile Penrose -> QDiagram B V2 Double Any
-deflateNdraw 0 t = draw' t
-deflateNdraw 1 t = transform (getTransform t) . foldr (matchingRule t . draw') mempty $ deflateTile' t--matchingRule t $ deflateTile' t
+deflateNdraw 0 t = draw t
+deflateNdraw 1 t = transform (getTransform t) . foldr (matchingRule t . draw) mempty $ deflateTile' t--matchingRule t $ deflateTile' t
 --deflateNdraw 2 t = foldr (matchingRule t . deflateNdraw 1) mempty (deflateTile' t)
 deflateNdraw n t = transform (getTransform t) $ foldr (matchingRule t . deflateNdraw (n-1)) mempty (deflateTile' t)
 
@@ -162,18 +174,45 @@ data Tile' a = Tile' a (MatchingRule a)
 
 --Draws each list beside each other. Draws each element inside a nested list on top of each other
 draw'' :: [[Tile Penrose]] -> QDiagram B V2 Double Any
-draw'' = foldr ((|||) . foldr ((<>) . draw') mempty) mempty
+draw'' = foldr ((|||) . foldr ((<>) . draw) mempty) mempty
+
+
+------------Matching Rules------------
+--A pair of Edges match if they are the same length and if they have the same number of white and black vertices
+edgesMatch :: Edge -> Edge -> Bool
+edgesMatch (v1, b1) (v2, b2) = (countTrue b1 == countTrue b2) && (norm v1 == norm v2)
+
+countTrue :: Num p => (Bool, Bool) -> p
+countTrue (x, y)  | x && y = 2
+                  | x || y = 1
+                  | otherwise  = 0
+
+--Finds all valid combinations of edges, returns the rotation that will align the second edge witht the first
+--the order of angle between might have to be swapped
+combinations :: Edge -> [Edge] -> [Transformation V2 Double]
+combinations _ [] = []
+combinations (v1,b1) ((v2,b2):es) = if edgesMatch (v1,b1) (v2,b2) then rotation (angleBetween v1 v2) : combinations (v1,b1) es else combinations (v1,b1) es
+
+allCombinations :: [Edge] -> [Edge] -> [Transformation V2 Double]
+allCombinations [] _ = []
+allCombinations (e:es) e2 = combinations e e2 ++ allCombinations es e2
+
+testCombs t1 t2 = map (\t -> mkTiling t1 <> (mkTiling t2 # transform (t))) (allCombinations (vsToEs t1) (vsToEs t2))
 
 tiles = [Tile Kite mempty, Tile Dart mempty, Tile HalfKite mempty, Tile HalfDart mempty]
 --tileTest2 = renderSVG "images/tTest.svg" (mkWidth 400) $ foldr ((|||) . draw') mempty tiles === draw'' (map deflateTile tiles)
 --tileTest2 = renderSVG "images/tTest.svg" (mkWidth 400) $ foldr ((<>) . draw') mempty (deflateTile (Tile HalfDart mempty))
 
 --tileTest2 = renderSVG "images/tTest.svg" (mkWidth 400) $ deflateRec [Tile Dart mempty] 2
-tileTest2 = renderSVG "images/tTest.svg" (mkWidth 400) $ foldr ((|||). deflateNdraw 2) mempty tiles
+--tileTest2 = renderSVG "images/tTest.svg" (mkWidth 400) $ foldr ((|||). deflateNdraw 2) mempty tiles
+
+-- testing the automatic finding of rototaions using mrs
+tileTest2 = renderSVG "images/tTest.svg" (mkWidth 400) $ foldr (|||) mempty (testCombs kite dart)
+
 
 --guiDemo :: Penrose -> Int -> Text
 guiDemo t z = renderText $ renderDia SVG (SVGOptions (mkHeight 500) Nothing "" [] True) $ deflateNdraw z t
 
 deflateRec :: [Tile Penrose] -> Int -> QDiagram B V2 Double Any
-deflateRec t 0 = foldr ((<>) . draw') mempty t
+deflateRec t 0 = foldr ((<>) . draw) mempty t
 deflateRec t n = deflateRec (concatMap deflateTile t) (n-1)
