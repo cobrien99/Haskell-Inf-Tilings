@@ -28,6 +28,7 @@ dependencies:
 - diagrams
 - diagrams-lib
 - diagrams-svg
+- diagrams-contrib
 - diagrams-rasterific
 - svg-builder
 - file-embed

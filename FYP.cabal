@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 203984362e2d577ff53cc923b1c18977d830cd2c2461750aa597ce1313340b36
+-- hash: 01cc88eb1e6019a07a660d4b38a528292f7ba703fad12b165901314f411ff6df
 
 name:           FYP
 version:        0.1.0.0
@@ -40,6 +40,7 @@ library
       base >=4.7 && <5
     , containers
     , diagrams
+    , diagrams-contrib
     , diagrams-lib
     , diagrams-rasterific
     , diagrams-svg
@@ -63,6 +64,7 @@ executable FYP-exe
     , base >=4.7 && <5
     , containers
     , diagrams
+    , diagrams-contrib
     , diagrams-lib
     , diagrams-rasterific
     , diagrams-svg
@@ -87,6 +89,7 @@ test-suite FYP-test
     , base >=4.7 && <5
     , containers
     , diagrams
+    , diagrams-contrib
     , diagrams-lib
     , diagrams-rasterific
     , diagrams-svg
