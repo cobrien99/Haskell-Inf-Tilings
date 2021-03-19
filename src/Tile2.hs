@@ -4,7 +4,7 @@
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module Tile2 (tileTest2, guiDemo, kiteCons, dartCons, tile, ) where
+module Tile2 (tileTest2, guiDemoTiling, kiteCons, dartCons, tile, deflateTiling, inflateTiling,  single) where
 
 import Diagrams.Prelude hiding (dart, halfDart, dart', halfDart')
 import Diagrams.Backend.SVG
@@ -78,6 +78,7 @@ edgesP Kite = [(e (36 @@ deg), (True, False)), (-e (36 @@ deg) + e (0 @@ deg), (
 
 
 data Tiling a = Single (Tile a) | Many (Tile a) [Tiling a]
+single = Single
 
 data Tile a = Tile a (Transformation V2 Double)
 tile = Tile
@@ -148,6 +149,10 @@ deflateTile' (Tile HalfDart t) = [Tile HalfDart ( rotation (144 @@ deg)), Tile H
 deflateTiling :: Tiling Penrose -> Tiling Penrose
 deflateTiling (Single t) = Many t (Single <$> deflateTile' t)
 deflateTiling (Many parent children) = Many parent (deflateTiling <$> children)
+
+inflateTiling :: Tiling Penrose -> Tiling Penrose
+inflateTiling (Single t) = Single t
+inflateTiling (Many parent children) = Many parent (inflateTiling <$> children)
 
 --I'm not sure if foldr is a good choice here
 drawTiling :: Tiling Penrose -> QDiagram B V2 Double Any
@@ -220,7 +225,8 @@ tileTest2 = renderSVG "images/tTest.svg" (mkWidth 400) $ foldr ((|||). drawTilin
 
 
 --guiDemo :: Penrose -> Int -> Text
-guiDemo t z = renderText $ renderDia SVG (SVGOptions (mkHeight 500) Nothing "" [] True) $ deflateNdraw z t
+--guiDemo t z = renderText $ renderDia SVG (SVGOptions (mkHeight 500) Nothing "" [] True) $ deflateNdraw z t
+guiDemoTiling t = renderText $ renderDia SVG (SVGOptions (mkHeight 500) Nothing "" [] True) $ drawTiling t
 
 -- deflateRec :: [Tile Penrose] -> Int -> QDiagram B V2 Double Any
 -- deflateRec t 0 = foldr ((<>) . draw) mempty t

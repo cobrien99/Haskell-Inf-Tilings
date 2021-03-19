@@ -6,7 +6,7 @@ module GUI (gmain) where
 import Reflex.Dom
 import Data.Text.Lazy ( toStrict ) --there could be some way to leverage this laziness
 import Draw (filepath, draw)
-import Tile2 (kiteCons, dartCons, tile, guiDemo)
+import Tile2 (kiteCons, dartCons, tile, guiDemoTiling, deflateTiling, single, inflateTiling)
 
 gmain :: IO ()
 gmain = mainWidget deflateDemo
@@ -27,16 +27,16 @@ serpDemo = do
 deflateDemo :: MonadWidget t m => m ()
 deflateDemo = do
     rec
-        dynZoom <- foldDyn ($) (0 :: Int) $ leftmost [(+1) <$ evIncr, (\x -> max 0 (x-1)) <$ evDecr, const 0 <$ evReset]
-        dynTiling <- foldDyn ($) (tile kiteCons mempty) $ leftmost [const (tile kiteCons mempty) <$ evKite, const (tile dartCons mempty) <$ evDart]
-        let dynImage =  toStrict <$> ((guiDemo <$> dynTiling) <*> dynZoom)
+        dynZoom <- foldDyn ($) (single $ tile kiteCons mempty) $ leftmost [deflateTiling <$ evIncr, inflateTiling <$ evDecr]
+        dynTiling <- foldDyn ($) (single $ tile kiteCons mempty) $ leftmost [const (single $ tile kiteCons mempty) <$ evKite, const (single $ tile dartCons mempty) <$ evDart]
+        let dynImage =  toStrict <$> ((guiDemoTiling <$> dynZoom))
         elDynHtml' "div" dynImage
         evKite <- button "Kite"
         evDart <- button "Dart"
-        el "div" $ display dynZoom
+        --el "div" $ display dynZoom
         evIncr <- button "Zoom Out"
         evDecr <- button "Zoom In"
-        evReset <- button "Reset Zoom"
+        --revReset <- button "Reset Zoom"
     return ()
 
 -- how does (display =<< count =<< button "ClickMe") work?

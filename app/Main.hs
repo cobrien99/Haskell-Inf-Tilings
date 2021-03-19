@@ -8,5 +8,5 @@ import Tile2 (tileTest2)
 
 main :: IO ()
 main = do
-    --gmain
-    tileTest2
+    gmain
+    --tileTest2
