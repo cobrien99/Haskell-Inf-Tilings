@@ -50,8 +50,6 @@ vsToEs vs = helper (vs ++ [head vs])
 
 --data Tile a = Tile {edges :: [V2 Double]}
 
-data Tiling a = Single (Tile a) | Many [Tile a]
-
 findMatchingedges :: [V2 Double] -> [V2 Double] -> [V2 Double]
 findMatchingedges [] _ = []
 findMatchingedges (v:vs) b = filter (\x -> norm v == norm x) b ++ findMatchingedges vs b
@@ -78,6 +76,8 @@ dartCons = Dart
 edgesP :: Penrose -> [Edge]
 edgesP Kite = [(e (36 @@ deg), (True, False)), (-e (36 @@ deg) + e (0 @@ deg), (False, True)), (-e (0 @@ deg) + e (-36 @@ deg), (True, False))]
 
+
+data Tiling a = Single (Tile a) | Many (Tile a) [Tiling a]
 
 data Tile a = Tile a (Transformation V2 Double)
 tile = Tile
@@ -109,12 +109,6 @@ mkTiling vertices = body -- <> translate (origin .-. centroid ps) (matchingRules
     -- matchingRules (b:bs) (p:ps)= mr b p <> matchingRules bs ps --matching rule treats (0,0) a orgin so have to correct for that too
     -- matchingRules [] [] = mempty
 
-deflate :: Penrose -> QDiagram B V2 Double Any
-deflate Kite = mkTiling halfKite <> mkTiling halfKite # reflectY
-deflate Dart = mkTiling halfDart === mkTiling halfDart # reflectY
-deflate HalfKite = mkTiling kite # rotate (-108 @@ deg) # moveOriginBy (- e (36 @@ deg)) <> mkTiling halfDart # rotate (-144 @@ deg) -- # alignT # centerX
-deflate HalfDart = mkTiling halfDart # rotate (144 @@ deg) <> mkTiling halfKite # reflectX # alignL
-
 
 draw :: Tile Penrose -> QDiagram B V2 Double Any
 draw (Tile Kite t) = mkTiling kite # transform t # lc green  --- # showOrigin
@@ -128,31 +122,39 @@ deflateNdraw 1 t = transform (getTransform t) . foldr (matchingRule t . draw) me
 deflateNdraw 2 t = foldr (matchingRule t . deflateNdraw 1) mempty (deflateTile' t)
 --deflateNdraw n t = transform (getTransform t) $ foldr (matchingRule t . deflateNdraw (n-1)) mempty (deflateTile' t)
 
+scaleTile (Tile Kite _) = scale 1
+scaleTile (Tile Dart _) = scale 1
+scaleTile (Tile HalfKite _) = scale (1/goldenRatio)
+scaleTile (Tile HalfDart _) = scale (1/goldenRatio)
 
 --determines how the children of this tile will line up when the tile is deflated
 --matchingRule :: Tile Penrose -> ([Tile Penrose] -> QDiagram B V2 Double Any)
 matchingRule (Tile Kite t) = \t1 t2 -> (t1 <> t2) -- # showOrigin  --foldr ((===) . draw') mempty
 matchingRule (Tile Dart t) = \t1 t2 -> (snugL (alignB t1) <> snugL (alignT t2)) # alignL # alignT # snugL -- # showOrigin  --foldr ((===) . draw') mempty
-matchingRule (Tile HalfKite t) = \k hd -> snugL (snugL (snugB k) <> snugR hd) # showOrigin --beside (e (270-18 @@ deg)) --foldr (beside (e (108 @@ deg)) . draw') mempty
-matchingRule (Tile HalfDart t) = \hd hk -> ((translate (-e (108 @@ deg)) hd) <> (translate (e (0 @@ deg)) hk)) 
+matchingRule (Tile HalfKite t) = \k hd -> snugL (snugL (snugB k) <> snugR hd) --beside (e (270-18 @@ deg)) --foldr (beside (e (108 @@ deg)) . draw') mempty
+-- The below matching rule is for applying with foldr. Results different bc of translating on mempty
+-- matchingRule (Tile HalfDart t) = \hd hk ->((translate (-e (108 @@ deg)) hd) <> (translate (e (0 @@ deg)) hk)) 
+matchingRule (Tile HalfDart t) = \hd hk ->((hd) <> (translate (e (0 @@ deg)) hk)) # translate (-e (108 @@ deg)) --this is for the matching rule list
 
--- The origins aren't really in the right place.....
--- They don't match where the origins of the orginal parent tiles are
---Translation should always be before rotation in the composition otherwise you get weird results 
--- TODO t might have to be last in the composition of transformations, not first
--- doesn't deflate correctly, tried t first last and not at all. none work
--- Since t is a path from the shape to the origin, maybe I need to transform by the inverse of t
--- deflateTile :: Tile Penrose -> [Tile Penrose]
--- deflateTile (Tile Kite t) = [Tile HalfKite t, Tile HalfKite (t <> reflectionY)] -- origin matches parent tile origin
--- deflateTile (Tile Dart t) = [Tile HalfDart t, Tile HalfDart (t <> translation (e (-36 @@ deg)) <> rotation (-108 @@ deg))] -- matches
--- deflateTile (Tile HalfKite t) = [Tile Kite (t <> reflectionX <> translation (-e (0 @@ deg)) <> rotation (-72 @@ deg) <> translation (-e (0 @@ deg))), Tile HalfDart (t <> reflectionX <> translation (-e (0 @@ deg)) <> rotation (-72 + 36 @@ deg) <> reflectionY)] --matches
--- deflateTile (Tile HalfDart t) = [Tile HalfDart (t <> translation (e (-72 @@ deg)) <> rotation (144 @@ deg)), Tile HalfKite (t <> translation (e (-72 @@ deg)) <> reflectionX <> translation (-e (0 @@ deg)))] --matches
+matchingRuleList t (t1:t2:_) = matchingRule t t1 t2
 
 deflateTile' :: Tile Penrose -> [Tile Penrose]
 deflateTile' (Tile Kite t) = [Tile HalfKite mempty, Tile HalfKite (reflectionY)] -- origin matches parent tile origin
 deflateTile' (Tile Dart t) = [Tile HalfDart mempty , Tile HalfDart (reflectionY)] -- matches
 deflateTile' (Tile HalfKite t) = [Tile Kite (reflectionX <> rotation (-72 @@ deg)), Tile HalfDart (reflectionX <> reflectionY <>rotation (36 @@ deg))] --matches
 deflateTile' (Tile HalfDart t) = [Tile HalfDart ( rotation (144 @@ deg)), Tile HalfKite (reflectionX)] --matches
+
+
+deflateTiling :: Tiling Penrose -> Tiling Penrose
+deflateTiling (Single t) = Many t (Single <$> deflateTile' t)
+deflateTiling (Many parent children) = Many parent (deflateTiling <$> children)
+
+--I'm not sure if foldr is a good choice here
+drawTiling :: Tiling Penrose -> QDiagram B V2 Double Any
+drawTiling (Single t) = draw t
+--this uses old foldr matching rule
+--drawTiling (Many parent children) = scaleTile parent (transform (getTransform parent) . foldr (matchingRule parent . drawTiling) mempty $ children)
+drawTiling (Many parent children) = scaleTile parent (transform (getTransform parent) $ matchingRuleList parent $ drawTiling <$> children)
 
 
 --draw :: Tile a -> Diagram B
@@ -203,11 +205,15 @@ allCombinations (e:es) e2 = combinations e e2 ++ allCombinations es e2
 testCombs t1 t2 = map (\t -> mkTiling t1 <> (mkTiling t2 # transform t)) (allCombinations (vsToEs t1) (vsToEs t2))
 
 tiles = [Tile Kite mempty, Tile Dart mempty, Tile HalfKite mempty, Tile HalfDart mempty]
+tilings = Single <$> tiles
 --tileTest2 = renderSVG "images/tTest.svg" (mkWidth 400) $ foldr ((|||) . draw') mempty tiles === draw'' (map deflateTile tiles)
 --tileTest2 = renderSVG "images/tTest.svg" (mkWidth 400) $ foldr ((<>) . draw') mempty (deflateTile (Tile HalfDart mempty))
 
 --tileTest2 = renderSVG "images/tTest.svg" (mkWidth 400) $ deflateRec [Tile Dart mempty] 2
-tileTest2 = renderSVG "images/tTest.svg" (mkWidth 400) $ foldr ((|||). deflateNdraw 1) mempty tiles 
+--tileTest2 = renderSVG "images/tTest.svg" (mkWidth 400) $ foldr ((|||). deflateNdraw 2) mempty tiles 
+
+--testing many single tree structure
+tileTest2 = renderSVG "images/tTest.svg" (mkWidth 400) $ foldr ((|||). drawTiling . deflateTiling . deflateTiling . deflateTiling) mempty tilings
 
 -- testing the automatic finding of rototaions using mrs
 --tileTest2 = renderSVG "images/tTest.svg" (mkWidth 400) $ foldr (|||) mempty (testCombs kite dart)
