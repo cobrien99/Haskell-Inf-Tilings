@@ -30,7 +30,7 @@ vsToEs :: [Vertex] -> [Edge]
 vsToEs [] = []
 vsToEs [_] = []
 vsToEs vs = helper (vs ++ [head vs])
-  where 
+  where
     helper (v1:v2:vs) = vToE v1 v2 : helper (v2:vs)
     helper _ = []
 
@@ -130,6 +130,13 @@ deflateTile' (Tile Dart t) = [Tile HalfDart mempty , Tile HalfDart (reflectionY)
 deflateTile' (Tile HalfKite t) = [Tile Kite (reflectionX <> rotation (-72 @@ deg)), Tile HalfDart (reflectionX <> reflectionY <>rotation (36 @@ deg))] --matches
 deflateTile' (Tile HalfDart t) = [Tile HalfDart ( rotation (144 @@ deg)), Tile HalfKite (reflectionX)] --matches
 
+parent :: Tiling a -> Tile a
+parent (Single t) = t
+parent (Many t _) = t
+
+children :: Tiling a -> [Tiling a]
+children (Single t) = []
+children (Many p c) = c
 
 deflateTiling :: Tiling Penrose -> Tiling Penrose
 deflateTiling (Single t) = Many t (Single <$> deflateTile' t)
@@ -145,6 +152,18 @@ drawTiling (Single t) = draw t
 --this uses old foldr matching rule
 --drawTiling (Many parent children) = scaleTile parent (transform (getTransform parent) . foldr (matchingRule parent . drawTiling) mempty $ children)
 drawTiling (Many parent children) = scaleTile parent (transform (getTransform parent) $ matchingRuleList parent $ drawTiling <$> children)
+
+-- infiniteTiling :: Tiling Penrose -> Tiling Penrose
+-- infiniteTiling t = Many (parent t) [infiniteTiling $ deflateTiling t]
+
+--supply what tile to start at
+infiniteTiling :: Tile Penrose -> Tiling Penrose
+infiniteTiling t = Many t $ infiniteTiling <$> deflateTile' t
+
+prune :: Int -> Tiling Penrose -> Tiling Penrose
+prune 0 t = Single (parent t)
+prune _ (Single t) = Single t --Stop at a leaf even if theres still some depth left in the count
+prune n t = Many (parent t) (prune (n-1) <$> children t)
 
 
 --draw :: Tile a -> Diagram B
@@ -203,7 +222,10 @@ tilings = Single <$> tiles
 --tileTest2 = renderSVG "images/tTest.svg" (mkWidth 400) $ foldr ((|||). deflateNdraw 2) mempty tiles 
 
 --testing many single tree structure
-tileTest2 = renderSVG "images/tTest.svg" (mkWidth 400) $ foldr ((|||). drawTiling . deflateTiling . deflateTiling . deflateTiling) mempty tilings
+--tileTest2 = renderSVG "images/tTest.svg" (mkWidth 400) $ foldr ((|||). drawTiling . deflateTiling . deflateTiling . deflateTiling) mempty tilings
+
+--Testing pruning the infinite tree, both these images should match above and below
+tileTest2 = renderSVG "images/tTest.svg" (mkWidth 400) $ foldr ((|||). drawTiling . deflateTiling . deflateTiling . deflateTiling) mempty tilings === cat unitX (drawTiling . prune 3 . infiniteTiling <$> tiles)
 
 -- testing the automatic finding of rototaions using mrs
 --tileTest2 = renderSVG "images/tTest.svg" (mkWidth 400) $ foldr (|||) mempty (testCombs kite dart)
