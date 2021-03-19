@@ -233,4 +233,4 @@ tileTest2 = renderSVG "images/tTest.svg" (mkWidth 400) $ foldr ((|||). drawTilin
 
 --guiDemo :: Penrose -> Int -> Text
 --guiDemo t z = renderText $ renderDia SVG (SVGOptions (mkHeight 500) Nothing "" [] True) $ deflateNdraw z t
-guiDemoTiling t = renderText $ renderDia SVG (SVGOptions (mkHeight 500) Nothing "" [] True) $ drawTiling t
+guiDemoTiling t n = renderText $ renderDia SVG (SVGOptions (mkHeight 500) Nothing "" [] True) $ (drawTiling . prune n . infiniteTiling) t
