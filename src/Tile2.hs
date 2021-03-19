@@ -35,21 +35,6 @@ vsToEs vs = helper (vs ++ [head vs])
     helper _ = []
 
 
---instance Eq [Vertex] where
-
---type Edge = (Vertex, Vertex)
-
--- class Tile a where
---     vertices :: a -> [Vertex]
-
---     draw :: a -> Diagram B
---     --draw = mkTiling . vertices
-
---     tileSides :: a -> Int
---     tileSides = length . vertices
-
---data Tile a = Tile {edges :: [V2 Double]}
-
 findMatchingedges :: [V2 Double] -> [V2 Double] -> [V2 Double]
 findMatchingedges [] _ = []
 findMatchingedges (v:vs) b = filter (\x -> norm v == norm x) b ++ findMatchingedges vs b
@@ -105,17 +90,17 @@ mkTiling :: [Vertex] -> QDiagram B V2 Double Any
 mkTiling vertices = body -- <> translate (origin .-. centroid ps) (matchingRules ps mrs)
   where
     (vs, mrs) = unzip vertices
-    body = fromOffsets vs
+    body = strokeLoop $ glueLine $ fromOffsets vs
     --body = translate (head ps .-. centroid ps) $ strokeLine $ fromVertices (ps ++ [head ps]) --from vertices sets the first point as the origin so have to correct for that
     -- matchingRules (b:bs) (p:ps)= mr b p <> matchingRules bs ps --matching rule treats (0,0) a orgin so have to correct for that too
     -- matchingRules [] [] = mempty
 
 
 draw :: Tile Penrose -> QDiagram B V2 Double Any
-draw (Tile Kite t) = mkTiling kite # transform t # lc green  --- # showOrigin
-draw (Tile Dart t) = mkTiling dart # transform t # lc yellow -- # showOrigin 
-draw (Tile HalfKite t) = mkTiling halfKite # transform t # lc blue -- # showOrigin 
-draw (Tile HalfDart t) = mkTiling halfDart # transform t # lc red -- # showOrigin
+draw (Tile Kite t) = mkTiling kite # transform t # fc green -- # lc green  --- # showOrigin
+draw (Tile Dart t) = mkTiling dart # transform t # fc yellow -- # lc yellow -- # showOrigin 
+draw (Tile HalfKite t) = mkTiling halfKite # transform t # fc blue -- # lc blue -- # showOrigin 
+draw (Tile HalfDart t) = mkTiling halfDart # transform t # fc red  -- # lc red -- # showOrigin
 
 deflateNdraw :: Int -> Tile Penrose -> QDiagram B V2 Double Any
 deflateNdraw 0 t = draw t
@@ -227,7 +212,3 @@ tileTest2 = renderSVG "images/tTest.svg" (mkWidth 400) $ foldr ((|||). drawTilin
 --guiDemo :: Penrose -> Int -> Text
 --guiDemo t z = renderText $ renderDia SVG (SVGOptions (mkHeight 500) Nothing "" [] True) $ deflateNdraw z t
 guiDemoTiling t = renderText $ renderDia SVG (SVGOptions (mkHeight 500) Nothing "" [] True) $ drawTiling t
-
--- deflateRec :: [Tile Penrose] -> Int -> QDiagram B V2 Double Any
--- deflateRec t 0 = foldr ((<>) . draw) mempty t
--- deflateRec t n = deflateRec (concatMap deflateTile t) (n-1)
