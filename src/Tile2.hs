@@ -11,6 +11,7 @@ import Diagrams.Backend.SVG
 import Diagrams.Backend.SVG.CmdLine
 import Diagrams.TwoD.Vector ( e )
 import Graphics.Svg.Core (renderText)
+import Data.Maybe
 
 
 
@@ -54,7 +55,7 @@ findMatchingedges (v:vs) b = filter (\x -> norm v == norm x) b ++ findMatchinged
 
 --data Tiling a = Tiling [Tile a]
 
-data Penrose = Kite | Dart | HalfDart | HalfKite
+data Penrose = Kite | Dart | HalfDart | HalfKite deriving (Eq)
 kiteCons = Kite
 dartCons = Dart
 
@@ -68,9 +69,28 @@ single = Single
 data Tile a = Tile a (Transformation V2 Double)
 tile = Tile
 
+--The order of appending transformations matters, not sure if this is the right one
+addTransform :: Tile a -> Transformation V2 Double -> Tile a 
+addTransform (Tile t trans) tNew = Tile t (trans <> tNew)
+
+--Ignoring transformation info at the moment, not sure if this is the write choice but it's all I need at the moment
+instance Eq a => Eq (Tile a) where
+  (==) (Tile t1 _) (Tile t2 _) = t1 == t2
+
 getTransform :: Tile a -> Transformation V2 Double
 getTransform (Tile _ t) = t
 
+--this could be a function of a Tile instance?
+tileVertices :: Penrose -> [Vertex]
+tileVertices Kite = kite
+tileVertices Dart = dart
+tileVertices HalfKite = halfKite
+tileVertices HalfDart = halfDart
+
+tileEdges = vsToEs . tileVertices
+
+penrose :: Tile Penrose -> Penrose
+penrose (Tile t _) = t
 
 kite :: [Vertex]
 kite = zip [e (36 @@ deg), -e (36 @@ deg) + e (0 @@ deg), -e (0 @@ deg) + e (-36 @@ deg), -e (-36 @@ deg)] [True, False, True, False]
@@ -86,21 +106,30 @@ halfDart :: [Vertex]
 halfDart = zip [e (-36 @@ deg), -e (36 @@ deg) -e (-36 @@ deg) + e (0 @@ deg), - e (0 @@ deg) + e (36 @@ deg)] [False, False, True]
 --halfDart = [- e (0 @@ deg) + e (36 @@ deg), e (-36 @@ deg), -e (36 @@ deg) -e (-36 @@ deg) + e (0 @@ deg)]
 
+drawTile :: Penrose -> QDiagram B V2 Double Any
+drawTile = mkTiling . tileVertices
+
 mkTiling :: [Vertex] -> QDiagram B V2 Double Any
-mkTiling vertices = body -- <> translate (origin .-. centroid ps) (matchingRules ps mrs)
+mkTiling vertices = body -- <> matchingRules vs mrs
   where
     (vs, mrs) = unzip vertices
     body = strokeLoop $ glueLine $ fromOffsets vs
+
+-- matchingRules (b:bs) (p:ps)= mr b p <> matchingRules bs ps --matching rule treats (0,0) a orgin so have to correct for that too
+-- matchingRules [] [] = mempty
+
+-- mr p True  = circle 0.05 # fc black # moveOriginBy p 
+-- mr p False = circle 0.05 # moveOriginBy p 
     --body = translate (head ps .-. centroid ps) $ strokeLine $ fromVertices (ps ++ [head ps]) --from vertices sets the first point as the origin so have to correct for that
     -- matchingRules (b:bs) (p:ps)= mr b p <> matchingRules bs ps --matching rule treats (0,0) a orgin so have to correct for that too
     -- matchingRules [] [] = mempty
 
 
 draw :: Tile Penrose -> QDiagram B V2 Double Any
-draw (Tile Kite t) = mkTiling kite # transform t # fc green -- # lc green  --- # showOrigin
-draw (Tile Dart t) = mkTiling dart # transform t # fc yellow -- # lc yellow -- # showOrigin 
-draw (Tile HalfKite t) = mkTiling halfKite # transform t # fc blue -- # lc blue -- # showOrigin 
-draw (Tile HalfDart t) = mkTiling halfDart # transform t # fc red  -- # lc red -- # showOrigin
+draw (Tile Kite t) = drawTile Kite # transform t # fc green -- # lc green  --- # showOrigin
+draw (Tile Dart t) = drawTile Dart  # transform t # fc yellow -- # lc yellow -- # showOrigin 
+draw (Tile HalfKite t) = drawTile HalfKite  # transform t # fc blue -- # lc blue -- # showOrigin 
+draw (Tile HalfDart t) = drawTile HalfDart  # transform t # fc red  -- # lc red -- # showOrigin
 
 deflateNdraw :: Int -> Tile Penrose -> QDiagram B V2 Double Any
 deflateNdraw 0 t = draw t
@@ -160,6 +189,9 @@ drawTiling (Many parent children) = scaleTile parent (transform (getTransform pa
 infiniteTiling :: Tile Penrose -> Tiling Penrose
 infiniteTiling t = Many t $ infiniteTiling <$> deflateTile' t
 
+-- --supply the starting tiling, could be single tile or many
+-- infiniteTiling' :: Tiling Penrose -> Tiling Penrose
+
 prune :: Int -> Tiling Penrose -> Tiling Penrose
 prune 0 t = Single (parent t)
 prune _ (Single t) = Single t --Stop at a leaf even if theres still some depth left in the count
@@ -211,6 +243,35 @@ allCombinations :: [Edge] -> [Edge] -> [Transformation V2 Double]
 allCombinations [] _ = []
 allCombinations (e:es) e2 = combinations e e2 ++ allCombinations es e2
 
+
+--Place two tiles next to each other
+--Generates a list of all possible matches (empty list = no possible matches)
+--Maybe I should return [[Tile Penrose]]
+--The transformation could be stored in one of the tiles
+--Returns [Tile Penrose] which is a list of all different transformations that can be applied to the 2ND tile to make it line up with the first
+matchTilings :: Tile Penrose -> Tile Penrose -> [Tile Penrose]
+matchTilings t1 t2 = map (addTransform t2) matches
+  where matches = allCombinations (tileEdges $ penrose t1) (tileEdges $ penrose t2)
+
+testMatchTilings :: Tile Penrose -> Tile Penrose -> QDiagram B V2 Double Any
+testMatchTilings t1 t2 = foldr ((|||) . showOrigin .  draw) mempty (t1 : matchTilings t1 t2)
+
+--------Searching through a list of tiles for tiles to combine------
+
+--See Sat 20 Mar note for explanation
+-- tryCombine :: Tile a -> [Tile a] -> Maybe [Tile a]
+-- tryCombine _ [] = Nothing
+-- tryCombine t ts =
+
+--returns true if a list of tiles contains the tiles that a given tile deflates too
+--
+-- listContainsChildren :: Tile a -> [Tile a] -> Bool
+
+
+--------------------------------------------------------------------
+
+
+
 testCombs t1 t2 = map (\t -> mkTiling t1 <> (mkTiling t2 # transform t)) (allCombinations (vsToEs t1) (vsToEs t2))
 
 tiles = [Tile Kite mempty, Tile Dart mempty, Tile HalfKite mempty, Tile HalfDart mempty]
@@ -225,10 +286,12 @@ tilings = Single <$> tiles
 --tileTest2 = renderSVG "images/tTest.svg" (mkWidth 400) $ foldr ((|||). drawTiling . deflateTiling . deflateTiling . deflateTiling) mempty tilings
 
 --Testing pruning the infinite tree, both these images should match above and below
-tileTest2 = renderSVG "images/tTest.svg" (mkWidth 400) $ foldr ((|||). drawTiling . deflateTiling . deflateTiling . deflateTiling) mempty tilings === cat unitX (drawTiling . prune 3 . infiniteTiling <$> tiles)
+--tileTest2 = renderSVG "images/tTest.svg" (mkWidth 400) $ foldr ((|||). drawTiling . deflateTiling . deflateTiling . deflateTiling) mempty tilings === cat unitX (drawTiling . prune 3 . infiniteTiling <$> tiles)
 
 -- testing the automatic finding of rototaions using mrs
 --tileTest2 = renderSVG "images/tTest.svg" (mkWidth 400) $ foldr (|||) mempty (testCombs kite dart)
+tileTest2 = renderSVG "images/tTest.svg" (mkWidth 400) $ testMatchTilings (Tile Kite mempty) (Tile Dart mempty)
+
 
 
 --guiDemo :: Penrose -> Int -> Text
