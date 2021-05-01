@@ -27,8 +27,13 @@ serpDemo = do
 deflateDemo :: MonadWidget t m => m ()
 deflateDemo = do
     rec
-        dynZoom <- foldDyn ($) (0 :: Int) $ leftmost [(+1) <$ evIncr, (\x -> max 0 (x-1)) <$ evDecr, const 0 <$ evReset]
-        dynTiling <- foldDyn ($) (tile kiteCons mempty) $ leftmost [const (tile kiteCons mempty) <$ evKite, const (tile dartCons mempty) <$ evDart]
+        dynZoom <- foldDyn ($) (0 :: Int) $ 
+            leftmost [(+1) <$ evIncr,
+                      (\x -> max 0 (x-1)) <$ evDecr,
+                      const 0 <$ evReset]
+        dynTiling <- foldDyn ($) (tile kiteCons mempty) $ 
+            leftmost [  const (tile kiteCons mempty) <$ evKite, 
+                        const (tile dartCons mempty) <$ evDart]
         let dynImage =  toStrict <$> ((guiDemoTiling <$> dynTiling) <*> dynZoom)
         elDynHtml' "div" dynImage
         evKite <- button "Kite"
