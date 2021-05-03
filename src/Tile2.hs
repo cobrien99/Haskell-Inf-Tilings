@@ -4,12 +4,13 @@
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module Tile2 (tileTest2, guiDemoTiling, kiteCons, dartCons, tile, deflateTiling, inflateTiling,  single) where
+module Tile2 (tileTest2, guiDemoTiling, kiteCons, dartCons, tile, deflate, inflateTiling,  single) where
 
 import Diagrams.Prelude hiding (dart, halfDart, dart', halfDart')
 import Diagrams.Backend.SVG
 import Diagrams.Backend.SVG.CmdLine
 import Diagrams.TwoD.Vector ( e )
+import Diagrams.TwoD.Arrow (connect)
 import Graphics.Svg.Core (renderText)
 import Data.Maybe
 
@@ -55,7 +56,7 @@ findMatchingedges (v:vs) b = filter (\x -> norm v == norm x) b ++ findMatchinged
 
 --data Tiling a = Tiling [Tile a]
 
-data Penrose = Kite | Dart | HalfDart | HalfKite deriving (Eq)
+data Penrose = Kite | Dart | HalfDart | HalfKite deriving (Eq, Show)
 kiteCons = Kite
 dartCons = Dart
 
@@ -85,6 +86,9 @@ addTransform (Tile t trans) tNew = Tile t (trans <> tNew)
 --Ignoring transformation info at the moment, not sure if this is the write choice but it's all I need at the moment
 instance Eq a => Eq (Tile a) where
   (==) (Tile t1 _) (Tile t2 _) = t1 == t2
+
+instance Show a => Show (Tile a) where
+  show (Tile t _) = show t
 
 getTransform :: Tile a -> Transformation V2 Double
 getTransform (Tile _ t) = t
@@ -140,11 +144,11 @@ draw (Tile Dart t) = drawTile Dart  # transform t # fc yellow -- # lc yellow -- 
 draw (Tile HalfKite t) = drawTile HalfKite  # transform t # fc blue -- # lc blue -- # showOrigin 
 draw (Tile HalfDart t) = drawTile HalfDart  # transform t # fc red  -- # lc red -- # showOrigin
 
-deflateNdraw :: Int -> Tile Penrose -> QDiagram B V2 Double Any
-deflateNdraw 0 t = draw t
-deflateNdraw 1 t = transform (getTransform t) . foldr (matchingRule t . draw) mempty $ deflateTile' t--matchingRule t $ deflateTile' t
-deflateNdraw 2 t = foldr (matchingRule t . deflateNdraw 1) mempty (deflateTile' t)
---deflateNdraw n t = transform (getTransform t) $ foldr (matchingRule t . deflateNdraw (n-1)) mempty (deflateTile' t)
+substituteNdraw :: Int -> Tile Penrose -> QDiagram B V2 Double Any
+substituteNdraw 0 t = draw t
+substituteNdraw 1 t = transform (getTransform t) . foldr (alignment t . draw) mempty $ sub t--matchingRule t $ sub t
+substituteNdraw 2 t = foldr (alignment t . substituteNdraw 1) mempty (sub t)
+--substituteNdraw n t = transform (getTransform t) $ foldr (matchingRule t . substituteNdraw (n-1)) mempty (sub t)
 
 scaleTile (Tile Kite _) = scale 1
 scaleTile (Tile Dart _) = scale 1
@@ -153,23 +157,23 @@ scaleTile (Tile HalfDart _) = scale (1/goldenRatio)
 
 --determines how the children of this tile will line up when the tile is deflated
 --matchingRule :: Tile Penrose -> ([Tile Penrose] -> QDiagram B V2 Double Any)
-matchingRule (Tile Kite t) = \t1 t2 -> (t1 <> t2) -- # showOrigin  --foldr ((===) . draw') mempty
-matchingRule (Tile Dart t) = \t1 t2 -> (snugL (alignB t1) <> snugL (alignT t2)) # alignL # alignT # snugL -- # showOrigin  --foldr ((===) . draw') mempty
-matchingRule (Tile HalfKite t) = \k hd -> snugL (snugL (snugB k) <> snugR hd) --beside (e (270-18 @@ deg)) --foldr (beside (e (108 @@ deg)) . draw') mempty
+alignment (Tile Kite t) = \t1 t2 -> (t1 <> t2) # transform t -- # showOrigin  --foldr ((===) . draw') mempty
+alignment (Tile Dart t) = \t1 t2 -> (snugL (alignB t1) <> snugL (alignT t2)) # alignL # alignT # snugL # transform t  -- # showOrigin  --foldr ((===) . draw') mempty
+alignment (Tile HalfKite t) = \k hd -> snugL (snugL (snugB k) <> snugR hd) # transform t  --beside (e (270-18 @@ deg)) --foldr (beside (e (108 @@ deg)) . draw') mempty
+alignment (Tile HalfDart t) = \hd hk -> ((hd) <> (translate (e (0 @@ deg)) hk)) # translate (-e (108 @@ deg)) # transform t  --this is for the matching rule list
 -- The below matching rule is for applying with foldr. Results different bc of translating on mempty
 -- matchingRule (Tile HalfDart t) = \hd hk ->((translate (-e (108 @@ deg)) hd) <> (translate (e (0 @@ deg)) hk)) 
-matchingRule (Tile HalfDart t) = \hd hk ->((hd) <> (translate (e (0 @@ deg)) hk)) # translate (-e (108 @@ deg)) --this is for the matching rule list
 
 
 --matchingRuleList :: (Semigroup b, Alignable b, Traced b, HasOrigin b, Transformable b, Floating (N b), V b ~ V2) => Tile Penrose -> [b] -> b
-matchingRuleList t (t1:t2:_) = matchingRule t t1 t2
+alignmentList t (t1:t2:_) = alignment t t1 t2
 --matchingRuleList t (t1:_) = transform (getTransform t) t1 --Not sure about this, just experimenting
 
-deflateTile' :: Tile Penrose -> [Tile Penrose]
-deflateTile' (Tile Kite t) = [Tile HalfKite mempty, Tile HalfKite (reflectionY)] -- origin matches parent tile origin
-deflateTile' (Tile Dart t) = [Tile HalfDart mempty , Tile HalfDart (reflectionY)] -- matches
-deflateTile' (Tile HalfKite t) = [Tile Kite (reflectionX <> rotation (-72 @@ deg)), Tile HalfDart (reflectionX <> reflectionY <>rotation (36 @@ deg))] --matches
-deflateTile' (Tile HalfDart t) = [Tile HalfDart ( rotation (144 @@ deg)), Tile HalfKite (reflectionX)] --matches
+sub :: Tile Penrose -> [Tile Penrose]
+sub (Tile Kite t) = [Tile HalfKite mempty, Tile HalfKite (reflectionY)] -- origin matches parent tile origin
+sub (Tile Dart t) = [Tile HalfDart mempty , Tile HalfDart (reflectionY)] -- matches
+sub (Tile HalfKite t) = [Tile Kite (reflectionX <> rotation (-72 @@ deg)), Tile HalfDart (reflectionX <> reflectionY <>rotation (36 @@ deg))] --matches
+sub (Tile HalfDart t) = [Tile HalfDart ( rotation (144 @@ deg)), Tile HalfKite (reflectionX)] --matches
 
 -- deflateTile :: Tile Penrose -> [Tile Penrose]
 -- deflateTile (Tile Kite t) = [Tile HalfKite mempty, Tile HalfKite (reflectionY)] 
@@ -179,21 +183,21 @@ deflateTile' (Tile HalfDart t) = [Tile HalfDart ( rotation (144 @@ deg)), Tile H
 -- deflateTile (Tile HalfDart t) = [Tile HalfDart ( rotation (144 @@ deg)), Tile HalfKite (reflectionX)]
 
 
-parent :: Tiling a -> Tile a
-parent (Leaf t) = t
-parent (Branch t _) = t
+getRoot :: Tiling a -> Tile a
+getRoot (Leaf t) = t
+getRoot (Branch t _) = t
 
 children :: Tiling a -> [Tiling a]
 children (Leaf t) = []
 children (Branch p c) = c
 
-deflateTiling :: Tiling Penrose -> Tiling Penrose
-deflateTiling (Leaf t) = Branch t (Leaf <$> deflateTile' t)
-deflateTiling (Branch parent children) = Branch parent (deflateTiling <$> children)
+deflate :: Tiling Penrose -> Tiling Penrose
+deflate (Leaf t) = Branch t (Leaf <$> sub t)
+deflate (Branch t children) = Branch t (deflate <$> children)
 
 inflateTiling :: Tiling Penrose -> Tiling Penrose
 inflateTiling (Leaf t) = Leaf t
-inflateTiling (Branch parent children) = if all isLeaf children then Leaf parent else Branch parent (inflateTiling <$> children)
+inflateTiling (Branch t children) = if all isLeaf children then Leaf t else Branch t (inflateTiling <$> children)
 
 isLeaf :: Tiling Penrose -> Bool
 isLeaf (Leaf _) = True
@@ -202,30 +206,29 @@ isLeaf _ = False
 --I'm not sure if foldr is a good choice here
 drawTiling :: Tiling Penrose -> QDiagram B V2 Double Any
 drawTiling (Leaf t) = draw t
---this uses old foldr matching rule
---drawTiling (Many parent children) = scaleTile parent (transform (getTransform parent) . foldr (matchingRule parent . drawTiling) mempty $ children)
-drawTiling (Branch parent children) = scaleTile parent (transform (getTransform parent) $ matchingRuleList parent $ drawTiling <$> children)
+--drawTiling (Branch parent children) = scaleTile parent (transform (getTransform parent) $ alignmentList parent $ drawTiling <$> children)
+drawTiling (Branch t children) = scaleTile t (alignmentList t $ drawTiling <$> children)
 
 -- infiniteTiling :: Tiling Penrose -> Tiling Penrose
--- infiniteTiling t = Many (parent t) [infiniteTiling $ deflateTiling t]
+-- infiniteTiling t = Many (parent t) [infiniteTiling $ deflate t]
 
 
 --supply what tile to start at
 infiniteTiling :: Tile Penrose -> Tiling Penrose
-infiniteTiling t = Branch t $ infiniteTiling <$> deflateTile' t
+infiniteTiling t = Branch t $ infiniteTiling <$> sub t
 
 -- --supply the starting tiling, could be single tile or many
 -- infiniteTiling' :: Tiling Penrose -> Tiling Penrose
 
 prune :: Int -> Tiling Penrose -> Tiling Penrose
-prune 0 t = Leaf (parent t)
+prune 0 t = Leaf (getRoot t)
 prune _ (Leaf t) = Leaf t --Stop at a leaf even if theres still some depth left in the count
-prune n t = Branch (parent t) (prune (n-1) <$> children t)
+prune n t = Branch (getRoot t) (prune (n-1) <$> children t)
 
 pruneJustFirst :: Int -> Tiling Penrose -> Tiling Penrose
-pruneJustFirst 0 t = Leaf (parent t)
+pruneJustFirst 0 t = Leaf (getRoot t)
 pruneJustFirst _ (Leaf t) = Leaf t --Stop at a leaf even if theres still some depth left in the count
-pruneJustFirst n t = Branch (parent t) [pruneJustFirst (n-1) $ head (children t)]
+pruneJustFirst n t = Branch (getRoot t) [pruneJustFirst (n-1) $ head (children t)]
 
 --draw :: Tile a -> Diagram B
 --draw = mkTiling . vertices
@@ -297,8 +300,7 @@ testMatchTilings t1 t2 = foldr ((|||) . showOrigin .  draw) mempty (t1 : matchTi
 -- listContainsChildren :: Tile a -> [Tile a] -> Bool
 
 
---------------------------------------------------------------------
-
+-------------------------------------------------------------------
 
 
 testCombs t1 t2 = map (\t -> mkTiling t1 <> (mkTiling t2 # transform t)) (allCombinations (vsToEs t1) (vsToEs t2))
@@ -318,11 +320,13 @@ tilings = Leaf <$> tiles
 
 --tileTest2 = renderSVG "images/tTest.svg" (mkWidth 400) $ foldr (((===) . alignL). draw) mempty tiles
 --tileTest2 = renderSVG "images/tTest.svg" (mkWidth 400) $ hsep 0.5 $ map (\x -> deflateNdraw x (Tile Kite mempty)) [0,1,2,3] --lol dNd doesn't go past 2
-tileTest2 = renderSVG "images/tTest.svg" (mkWidth 400) $ hsep 0.4 $ [drawTiling $ prune x $ infiniteTiling (Tile Kite mempty) | x <- [0,1,2,3]]
+--tileTest2 = renderSVG "images/tTest.svg" (mkWidth 400) $ hsep 0.4 $ [drawTiling $ prune x $ infiniteTiling (Tile Kite mempty) | x <- [0,1,2,3]]
 
+showSub t =  ((drawTiling t # named ("0" :: String)) ||| strut 0.5 ||| ((drawTiling $ deflate t) # named ("1" :: String))) # connect ("0" :: String) ("1" :: String)
+--tileTest2 = renderSVG "images/tTest.png" (mkWidth 400)  $ vsep 0.1 (map (showSub . Leaf) tiles)
 
-
-
+showTiles = renderSVG "images/tTest.svg" (mkWidth 400)  $ hsep 0.1 (map (alignB . draw) tiles)
+tileTest2 = showTiles
 -- Generating graphics for report
 
 --Tree structure representation of repreated substitutions
@@ -331,7 +335,7 @@ tree :: Tile Penrose -> Int -> QDiagram B V2 Double Any
 tree tile 0 = draw tile
 tree tile 1 = root === strutY 2 === hsep 1 leaves
   where root = draw tile # named ("root" :: String)
-        leaves = map draw (deflateTile' tile)
+        leaves = map draw (sub tile)
 
  --tileTest2 = renderSVG "images/tTest.svg" (mkWidth 400) $ tree (Tile Kite mempty) 0 === tree (Tile Kite mempty) 1
 
