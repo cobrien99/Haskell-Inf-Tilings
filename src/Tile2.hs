@@ -217,6 +217,14 @@ drawTiling (Branch t children) = scaleTile t (alignmentList t $ drawTiling <$> c
 infiniteTiling :: Tile Penrose -> Tiling Penrose
 infiniteTiling t = Branch t $ infiniteTiling <$> sub t
 
+
+------modelling a general L-system
+type LSystem a = Tiling a
+type Symbol a = Tile a
+
+genLSystem :: (Symbol a -> [Symbol a]) -> Symbol a -> LSystem a
+genLSystem prodRules axiom = Branch axiom $ genLSystem prodRules <$> prodRules axiom
+
 -- --supply the starting tiling, could be single tile or many
 -- infiniteTiling' :: Tiling Penrose -> Tiling Penrose
 

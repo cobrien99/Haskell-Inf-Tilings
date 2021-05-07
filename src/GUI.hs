@@ -42,14 +42,18 @@ tilingGUI = do
             leftmost [  const (tile kiteCons mempty) <$ evKite, 
                         const (tile dartCons mempty) <$ evDart]
         -- Combining signals to produce & display the tiling image
-        let dynImage =  toStrict <$> ((infiniteTiling <$> dynRootTile) <*> dynDepth)
+        let dynImage =  toStrict <$> (infiniteTiling <$> dynRootTile <*> dynDepth)
         elDynHtml' "div" dynImage
         --State info
         el "div" $ do 
-            text "Depth: "
-            display dynDepth
-            text ", Root: "
+            text "Root: "
             display dynRootTile
+            text ", Depth: "
+            display dynDepth
+            text ", Tiles: "
+            display ((2 ^) <$> dynDepth)
+            text ", Nodes: "
+            display ((\x -> (2^(x+1))-1) <$> dynDepth)
         -- Tile selection buttons
         evKite <- button "Kite"
         evDart <- button "Dart"
